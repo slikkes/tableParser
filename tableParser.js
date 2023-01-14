@@ -5,6 +5,10 @@ const dodler = {
     isListening: false,
     withHeaders: true,
     tableHeaders: [],
+    sort:{
+      key: null,
+      asc: true
+    },
     tableData:{
       headers:[],
       data:{}
@@ -93,39 +97,79 @@ const dodler = {
 
   },
   _refreshHeaderInputs(headers, maxCol){
-    const inputWrapper = document.querySelector('.dodler-root #headerInputs');
+    const inputWrapper = this.state.root.querySelector('#headerInputs');
     inputWrapper.innerHTML = "";
 
+    this.state.sort = { key: null, asc: true }
     this.state.tableHeaders = [];
 
     const inputs = [...Array(maxCol).keys()].map(idx=>{
       const input = document.createElement('input');
       input.value = headers[idx] || null;
       input.classList.add('text-box')
-      this.state.tableHeaders.push(input.value)
+      this.state.tableHeaders.push({show:true, value:input.value})
 
       input.addEventListener('input',event=>{
-        this.state.tableHeaders[idx] = event.target.value
+        this.state.tableHeaders[idx].value = event.target.value.trim()
         this._updateOutput();
       })
 
-      inputWrapper.append(input)
+      const checkBox = document.createElement('input')
+      checkBox.type = 'checkbox'
+      checkBox.checked = true;
+      checkBox.addEventListener('change', event=>{
+        this.state.tableHeaders[idx].show = event.target.checked
+        this._updateOutput();
+      })
+
+      const radio = document.createElement('input');
+      radio.type = "radio"
+      radio.name = "sortkey"
+      radio.value = input.value;
+      radio.addEventListener('change', event=>{
+        this.state.sort.key = event.target.value
+        this._updateOutput()
+      })
+
+      const item = document.createElement('div')
+      item.style.display = "flex"
+
+      item.append(checkBox)
+      item.append(input)
+      item.append(radio)
+      inputWrapper.append(item)
     })
   },
   _updateOutput(){
+    const data = this.state.tableData.lines;
+
     const outputArea = this.state.root.querySelector("#outputArea")
     if (!this.state.withHeaders) {
-      outputArea.innerHTML = JSON.stringify(this.state.tableData.lines);
+      outputArea.innerHTML = JSON.stringify(data);
     }
 
-    const keyedLines = this.state.tableData.lines.map(line=>{
+    let keyedLines = data
+    .map(line=>{
       return line.reduce((carry,value,idx)=>{
-        const key = this.state.tableHeaders[idx] || idx;
-        carry[key] = value;
+        const key = this.state.tableHeaders[idx]?.value || idx;
+
+        if(this.state.tableHeaders[idx]?.show){
+          carry[key] = value;
+        }
 
         return carry;
       },{})
     })
+    if(this.state.sort.key){
+      const sortKey = this.state.sort.key;
+      keyedLines = keyedLines.sort((a,b)=>{
+        if(isNaN(a[sortKey]) || isNaN(b[sortKey])){
+          return a[sortKey].localeCompare(b[sortKey]);
+        }
+
+        return a[sortKey] - b[sortKey];
+      })
+    }
     outputArea.innerHTML = JSON.stringify(keyedLines);
 
   },
@@ -156,7 +200,7 @@ const dodler = {
       .filter(i=>i.children.length > 0)
       .map(line=>{
         const cells = Array.from(line.querySelectorAll('td'))
-        .map(cell=>cell.innerText)
+        .map(cell=>cell.innerText.trim())
 
         maxCol = cells.length > maxCol ? cells.length : maxCol;
 
@@ -174,7 +218,8 @@ const dodler = {
       }
 
       return Array.from(rows[0].children).map(item=>{
-        return item.innerText;
+        let t =item.innerText;
+        return t.trim()
       })
     }
   },
@@ -237,7 +282,7 @@ const dodler = {
       padding:0 6px;
     }
     .dodler-root.active #contentRoot{
-      width:500px;
+      width:540px;
       height:250px;
       display: flex;
       flex-direction:row;
@@ -251,17 +296,20 @@ const dodler = {
       margin:2px 1px;
       color:black;
     }
-    #actionBtn{
+    .dodler-root #actionBtn{
       background-color: #8b8a8a;
     }
-    #actionBtn:before{
+    .dodler-root #actionBtn:before{
       content:url("data:image/svg+xml,%3Csvg width='24px' height='24px' viewBox='0 0 1024 1024' class='icon' version='1.1' xmlns='http://www.w3.org/2000/svg' fill='%23000000'%3E%3Cg id='SVGRepo_bgCarrier' stroke-width='0'%3E%3C/g%3E%3Cg id='SVGRepo_tracerCarrier' stroke-linecap='round' stroke-linejoin='round'%3E%3C/g%3E%3Cg id='SVGRepo_iconCarrier'%3E%3Cpath d='M587.410286 553.837714L709.266286 680.96a30.061714 30.061714 0 0 1-43.958857 40.96L541.110857 592.457143a180.443429 180.443429 0 1 1 46.299429-38.546286z m-136.923429 2.852572a120.246857 120.246857 0 1 0 0-240.566857 120.246857 120.246857 0 0 0 0 240.566857z m409.088 189.366857l-0.585143-0.365714a32.914286 32.914286 0 0 1-8.045714-46.445715 412.013714 412.013714 0 1 0-141.897143 145.846857c14.628571-8.996571 33.645714-5.12 43.666286 8.777143l0.146286 0.073143a30.427429 30.427429 0 0 1-7.972572 43.227429l-6.144 4.022857a475.428571 475.428571 0 1 1 163.693714-164.498286 29.988571 29.988571 0 0 1-42.861714 9.362286z' fill='%23000000'%3E%3C/path%3E%3C/g%3E%3C/svg%3E");
     }
-    #actionBtn.on{
+    .dodler-root #actionBtn.on{
       background-color: #AACCDD;
     }
-    #headerInputs{
-      width: 190px;
+    .dodler-root #headerInputs{
+      width: 230px;
+    }
+    .dodler-root #headerInputs input{
+      width: 170px;
     }
     `;
     document.getElementsByTagName('head')[0].appendChild(style);
