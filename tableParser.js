@@ -1,5 +1,15 @@
 const dodler = {
-
+  state: {
+    root: null,
+    isOpen: false,
+    isListening: false,
+    withHeaders: true,
+    tableHeaders: [],
+    tableData:{
+      headers:[],
+      data:{}
+    }
+  },
   init(){
     this._addStyleSheet()
 
@@ -10,11 +20,6 @@ const dodler = {
     this._createContent(root)
 
     document.body.append(root);
-
-    this.state = {
-      isOpen: false,
-      isListening: false
-    }
 
   },
   _createToggleBtn(root){
@@ -37,11 +42,17 @@ const dodler = {
     const contentRoot = document.createElement("DIV");
     contentRoot.id = "contentRoot"
 
+    const headerInputs = document.createElement("DIV");
+    headerInputs.id = "headerInputs"
+
     const actionBtn = document.createElement("BUTTON");
     actionBtn.id = "actionBtn"
 
     const outputArea = document.createElement("TEXTAREA");
     outputArea.id = "outputArea";
+    outputArea.classList.add('text-box')
+    outputArea.disabled = true;
+
     const getTableData = (event)=>{
       let res = this.tableParser.parseFromClick(event)
 
@@ -50,7 +61,10 @@ const dodler = {
         return;
       }
 
-      outputArea.innerHTML = JSON.stringify(res.data)
+      this.state.tableData = res.data;
+      this._refreshHeaderInputs(res.headers, res.data.maxCol);
+      this._updateOutput();
+
       actionBtn.click();
     }
 
@@ -65,12 +79,54 @@ const dodler = {
       this.state.isListening = !this.state.isListening;
     }
 
+    let rightCol = document.createElement('div');
+    rightCol.style.display = 'flex'
+    rightCol.style.flexDirection = 'column'
+    rightCol.append(outputArea)
+    rightCol.append(actionBtn)
 
-
-    contentRoot.append(outputArea)
-    contentRoot.append(actionBtn)
+    contentRoot.append(headerInputs)
+    contentRoot.append(rightCol)
     root.append(contentRoot)
 
+    this.state.root = root;
+
+  },
+  _refreshHeaderInputs(headers, maxCol){
+    const inputWrapper = document.querySelector('.dodler-root #headerInputs');
+    inputWrapper.innerHTML = "";
+
+    this.state.tableHeaders = [];
+
+    const inputs = [...Array(maxCol).keys()].map(idx=>{
+      const input = document.createElement('input');
+      input.value = headers[idx] || null;
+      input.classList.add('text-box')
+      this.state.tableHeaders.push(input.value)
+
+      input.addEventListener('input',event=>{
+        this.state.tableHeaders[idx] = event.target.value
+        this._updateOutput();
+      })
+
+      inputWrapper.append(input)
+    })
+  },
+  _updateOutput(){
+    const outputArea = this.state.root.querySelector("#outputArea")
+    if (!this.state.withHeaders) {
+      outputArea.innerHTML = JSON.stringify(this.state.tableData.lines);
+    }
+
+    const keyedLines = this.state.tableData.lines.map(line=>{
+      return line.reduce((carry,value,idx)=>{
+        const key = this.state.tableHeaders[idx] || idx;
+        carry[key] = value;
+
+        return carry;
+      },{})
+    })
+    outputArea.innerHTML = JSON.stringify(keyedLines);
 
   },
   tableParser:{
@@ -83,23 +139,42 @@ const dodler = {
         }
 
 
-        return {success:true, data:this.parseTable(table)};
+        return {
+          success:true,
+          headers: this.parseHeaders(table),
+          data:this.parseTable(table)
+        };
       }
 
       return {success:false, msg:event.target.tagName}
     },
     parseTable(table){
+      let maxCol = 0;
 
-
-      const tbody = Array.from(table.children).find(el => el.tagName.toLowerCase() === 'tbody')
-      return Array.from(tbody.children)
-      .filter(i=>i.tagName === 'TR' && i.children.length > 0)
+      const tbody = table.querySelector('tbody')
+      const lines = Array.from(tbody.querySelectorAll('tr'))
+      .filter(i=>i.children.length > 0)
       .map(line=>{
-        const cells = Array.from(line.children)
-        .filter(i=>i.tagName==='TD')
+        const cells = Array.from(line.querySelectorAll('td'))
         .map(cell=>cell.innerText)
 
+        maxCol = cells.length > maxCol ? cells.length : maxCol;
+
         return cells;
+      })
+
+      return {lines, maxCol}
+    },
+    parseHeaders(table){
+      const thead = table.querySelector('thead')
+      const rows = thead.querySelectorAll('tr');
+
+      if(rows.length == 0){
+        return [];
+      }
+
+      return Array.from(rows[0].children).map(item=>{
+        return item.innerText;
       })
     }
   },
@@ -123,6 +198,22 @@ const dodler = {
       resize:both;
       box-shadow: rgba(11, 255, 52, 0.52) 0px 7px 29px 0px;
     }
+    .dodler-root *::-webkit-scrollbar {
+      width: 1em;
+      cursor:pointer;
+    }
+
+    .dodler-root *::-webkit-scrollbar-track {
+      box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+    }
+    .dodler-root *::-webkit-scrollbar-corner {
+      box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .dodler-root *::-webkit-scrollbar-thumb {
+      background-color: darkgrey;
+      outline: 1px solid slategrey;
+    }
     .dodler-root #toggleBtn{
       background-color: #73943b7a;
     }
@@ -142,21 +233,26 @@ const dodler = {
     .dodler-root #contentRoot{
       height:0;
       width:0;
-      padding:0 6px;
       transition:width 0.6s, height 0.4s;
+      padding:0 6px;
     }
     .dodler-root.active #contentRoot{
+      width:500px;
+      height:250px;
       display: flex;
-      flex-direction:column;
-      width:300px;
-      height:400px;
+      flex-direction:row;
     }
     .dodler-root #contentRoot #outputArea{
-      margin-top:8px;
-      background-color:#81c90236;
+      height:60%;
+      width: 300px;
+    }
+    .dodler-root .text-box{
+      background-color:#81c902a3;
+      margin:2px 1px;
+      color:black;
     }
     #actionBtn{
-      background-color: #AAAAAA;
+      background-color: #8b8a8a;
     }
     #actionBtn:before{
       content:url("data:image/svg+xml,%3Csvg width='24px' height='24px' viewBox='0 0 1024 1024' class='icon' version='1.1' xmlns='http://www.w3.org/2000/svg' fill='%23000000'%3E%3Cg id='SVGRepo_bgCarrier' stroke-width='0'%3E%3C/g%3E%3Cg id='SVGRepo_tracerCarrier' stroke-linecap='round' stroke-linejoin='round'%3E%3C/g%3E%3Cg id='SVGRepo_iconCarrier'%3E%3Cpath d='M587.410286 553.837714L709.266286 680.96a30.061714 30.061714 0 0 1-43.958857 40.96L541.110857 592.457143a180.443429 180.443429 0 1 1 46.299429-38.546286z m-136.923429 2.852572a120.246857 120.246857 0 1 0 0-240.566857 120.246857 120.246857 0 0 0 0 240.566857z m409.088 189.366857l-0.585143-0.365714a32.914286 32.914286 0 0 1-8.045714-46.445715 412.013714 412.013714 0 1 0-141.897143 145.846857c14.628571-8.996571 33.645714-5.12 43.666286 8.777143l0.146286 0.073143a30.427429 30.427429 0 0 1-7.972572 43.227429l-6.144 4.022857a475.428571 475.428571 0 1 1 163.693714-164.498286 29.988571 29.988571 0 0 1-42.861714 9.362286z' fill='%23000000'%3E%3C/path%3E%3C/g%3E%3C/svg%3E");
@@ -164,7 +260,9 @@ const dodler = {
     #actionBtn.on{
       background-color: #AACCDD;
     }
-
+    #headerInputs{
+      width: 190px;
+    }
     `;
     document.getElementsByTagName('head')[0].appendChild(style);
   }
