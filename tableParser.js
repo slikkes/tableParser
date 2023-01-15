@@ -6,7 +6,7 @@ const dodler = {
     withHeaders: true,
     tableHeaders: [],
     sort:{
-      key: null,
+      idx: null,
       asc: true
     },
     tableData:{
@@ -65,8 +65,8 @@ const dodler = {
         return;
       }
 
-      this.state.tableData = res.data;
-      this._refreshHeaderInputs(res.headers, res.data.maxCol);
+      this.state.tableData = res;
+      this._refreshHeaderInputs(res.headers[0], res.data.maxCol);
       this._updateOutput();
 
       actionBtn.click();
@@ -96,12 +96,73 @@ const dodler = {
     this.state.root = root;
 
   },
-  _refreshHeaderInputs(headers, maxCol){
+  _refreshHeaderInputs(headers, maxCol, defMode){
     const inputWrapper = this.state.root.querySelector('#headerInputs');
     inputWrapper.innerHTML = "";
 
     this.state.sort = { key: null, asc: true }
     this.state.tableHeaders = [];
+
+    const selAllBox = document.createElement('input');
+    selAllBox.type = "checkbox"
+    selAllBox.checked = true;
+    selAllBox.addEventListener('change', event=>{
+      this.state.tableHeaders = this.state.tableHeaders
+      .map(item=>{
+        item.show =  event.target.checked;
+        return item;
+      })
+
+      for (var checkBox of inputWrapper.querySelectorAll("input[type=checkbox]")) {
+        checkBox.checked = event.target.checked;
+        checkBox.parentElement.style.opacity = event.target.checked ? 1 : 0.6
+      }
+      this._updateOutput();
+    })
+
+    const modeSelect = document.createElement('select');
+    modeSelect.classList.add('text-box')
+    modeSelect.style.width = "172px"
+    modeSelect.addEventListener('change', event=>{
+      if(event.target.value != -1){
+        this.state.withHeaders = true
+        this._refreshHeaderInputs(this.state.tableData.headers[event.target.value],maxCol,event.target.value)
+      }else{
+        this.state.withHeaders = false
+      }
+      this._updateOutput();
+    })
+    const opts = [...Array(this.state.tableData.headers.length).keys()]
+    .map(idx=>{
+      const option = document.createElement('option');
+      option.value = idx;
+      option.innerHTML = `${idx+1}. header`;
+      return option;
+    })
+
+    const noKeysOpt = document.createElement('option');
+    noKeysOpt.value = -1;
+    noKeysOpt.innerHTML = 'no keys';
+    for(let option of [...opts,noKeysOpt]){
+      modeSelect.append(option)
+    }
+    modeSelect.value = defMode ?? opts[0].value
+
+    const sortDirBtn = document.createElement('button');
+    sortDirBtn.innerHTML = this.state.sort.asc ? "↥" : "↧"
+    sortDirBtn.addEventListener('click', event=>{
+      this.state.sort.asc = !this.state.sort.asc
+      sortDirBtn.innerHTML = this.state.sort.asc ? "↥" : "↧"
+      this._updateOutput()
+    })
+
+    const mainLine = document.createElement('div');
+    mainLine.style.display = 'flex'
+    mainLine.style.backgroundColor = '#5302c936'
+    mainLine.append(selAllBox)
+    mainLine.append(modeSelect)
+    mainLine.append(sortDirBtn)
+    inputWrapper.append(mainLine)
 
     const inputs = [...Array(maxCol).keys()].map(idx=>{
       const input = document.createElement('input');
@@ -119,6 +180,7 @@ const dodler = {
       checkBox.checked = true;
       checkBox.addEventListener('change', event=>{
         this.state.tableHeaders[idx].show = event.target.checked
+        event.target.parentElement.style.opacity = event.target.checked ? 1 : 0.6
         this._updateOutput();
       })
 
@@ -127,7 +189,7 @@ const dodler = {
       radio.name = "sortkey"
       radio.value = input.value;
       radio.addEventListener('change', event=>{
-        this.state.sort.key = event.target.value
+        this.state.sort.idx = idx
         this._updateOutput()
       })
 
@@ -141,11 +203,12 @@ const dodler = {
     })
   },
   _updateOutput(){
-    const data = this.state.tableData.lines;
+    const data = this.state.tableData.data.lines;
 
     const outputArea = this.state.root.querySelector("#outputArea")
     if (!this.state.withHeaders) {
       outputArea.innerHTML = JSON.stringify(data);
+      return
     }
 
     let keyedLines = data
@@ -160,14 +223,20 @@ const dodler = {
         return carry;
       },{})
     })
-    if(this.state.sort.key){
-      const sortKey = this.state.sort.key;
+    if(this.state.sort.idx != null){
+      const sortKey = this.state.tableHeaders[this.state.sort.idx].value;
       keyedLines = keyedLines.sort((a,b)=>{
-        if(isNaN(a[sortKey]) || isNaN(b[sortKey])){
-          return a[sortKey].localeCompare(b[sortKey]);
+
+        if(!!a[sortKey] && (isNaN(a[sortKey]) || isNaN(b[sortKey]))){
+          console.log(a[sortKey].localeCompare(b[sortKey]),b[sortKey].localeCompare(a[sortKey]));
+          if(this.state.sort.asc){
+            return a[sortKey].localeCompare(b[sortKey]);
+          }
+          return b[sortKey].localeCompare(a[sortKey]);
         }
 
-        return a[sortKey] - b[sortKey];
+        const dir = this.state.sort.asc ? 1 : -1
+        return (parseInt(a[sortKey]) - parseInt(b[sortKey])) * dir;
       })
     }
     outputArea.innerHTML = JSON.stringify(keyedLines);
@@ -211,15 +280,21 @@ const dodler = {
     },
     parseHeaders(table){
       const thead = table.querySelector('thead')
+      if(!thead){
+        return;
+      }
       const rows = thead.querySelectorAll('tr');
 
       if(rows.length == 0){
         return [];
       }
 
-      return Array.from(rows[0].children).map(item=>{
-        let t =item.innerText;
-        return t.trim()
+
+      return Array.from(rows).map(row=>{
+        return Array.from(row.children).map(item=>{
+          let t =item.innerText;
+          return t.trim()
+        })
       })
     }
   },
@@ -310,6 +385,9 @@ const dodler = {
     }
     .dodler-root #headerInputs input{
       width: 170px;
+    }
+    .dodler-root #headerInputs input[type='checkbox'] {
+      width: 17px;
     }
     `;
     document.getElementsByTagName('head')[0].appendChild(style);
