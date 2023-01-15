@@ -115,7 +115,7 @@ const dodler = {
     const opts = [...Array(this.state.tableData.headers.length).keys()]
     .map(idx => this.viewService.createElement('option', modeSelect, {value: idx,innerHTML: `${idx+1}. header`}))
 
-    modeSelect.value = defMode ?? opts[0].value
+    modeSelect.value = defMode || opts[0].value
 
     const sortDirBtn = this.viewService.createElement('button', mainLine, {
       innerHTML: this.state.sort.asc ? "↥" : "↧"
@@ -127,7 +127,7 @@ const dodler = {
       this._updateOutput()
     })
 
-    for (var idx = 0; idx < maxCol; idx++) {
+    const inputs = [...Array(maxCol).keys()].map(idx=>{
       const item = this.viewService.createElement('div', inputWrapper, {style: {display: 'flex'}});
       const checkBox = this.viewService.createElement('input', item, {
         type: 'checkbox', checked: true, className: 'text-box'
@@ -158,7 +158,7 @@ const dodler = {
         this.state.sort.idx = idx
         this._updateOutput()
       })
-    }
+    })
   },
   _updateOutput(){
     let data = this.state.tableData.data.lines;
@@ -193,7 +193,6 @@ const dodler = {
       data = data.sort((a,b)=>{
 
         if(!!a[sortKey] && (isNaN(a[sortKey]) || isNaN(b[sortKey]))){
-          console.log(a[sortKey].localeCompare(b[sortKey]),b[sortKey].localeCompare(a[sortKey]));
           if(this.state.sort.asc){
             return a[sortKey].localeCompare(b[sortKey]);
           }
