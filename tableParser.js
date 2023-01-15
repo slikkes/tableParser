@@ -5,6 +5,7 @@ const dodler = {
     isListening: false,
     withHeaders: true,
     tableHeaders: [],
+    search: null,
     sort:{
       idx: null,
       asc: true
@@ -81,8 +82,16 @@ const dodler = {
 
     this.state.sort = { key: null, asc: true }
     this.state.tableHeaders = [];
+    this.state.search = null;
 
-    const mainLine = this.viewService.createElement('div', inputWrapper, {style: {display:'flex',backgroundColor: '#5302c936'}});
+    const searchLine = this.viewService.createElement('div', inputWrapper, {style: {display:'flex',backgroundColor: '#5302c936'}});
+    const search = this.viewService.createElement('input', searchLine, {type:'text', className: 'text-box', placeholder: 'search...'});
+    search.addEventListener('input', event=>{
+      this.state.search = event.target.value
+      this._updateOutput();
+    })
+
+    const mainLine = this.viewService.createElement('div', inputWrapper, {style: {display:'flex',backgroundColor: '#5302c936', marginBottom: '4px'}});
     const selAllBox = this.viewService.createElement('input', mainLine, {type:'checkbox', checked: true});
 
     selAllBox.addEventListener('change', event=>{
@@ -163,6 +172,10 @@ const dodler = {
   _updateOutput(){
     let data = this.state.tableData.data.lines;
 
+    if(this.state.search){
+      data = data.filter(line=>line.join("#").toLowerCase().includes(this.state.search))
+    }
+
     const outputArea = this.state.root.querySelector("#outputArea")
     if (!this.state.withHeaders) {
       data = data.map(line=>{
@@ -173,6 +186,10 @@ const dodler = {
           return carry;
         },[])
       })
+
+      if(this.state.tableHeaders.filter(i=>i.show).length == 1){
+        data = data.flat()
+      }
       outputArea.innerHTML = JSON.stringify(data);
       return
     }
@@ -320,6 +337,9 @@ const dodler = {
     .dodler-root *::-webkit-scrollbar-thumb {
       background-color: darkgrey;
       outline: 1px solid slategrey;
+    }
+    .dodler-root ::placeholder{
+      color:black;
     }
     .dodler-root #toggleBtn{
       background-color: #73943b7a;
