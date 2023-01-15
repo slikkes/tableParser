@@ -17,45 +17,33 @@ const dodler = {
   init(){
     this._addStyleSheet()
 
-    const root = document.createElement("DIV");
-    root.classList.add('dodler-root')
+    const root = this.viewService.createElement('div', document.body, {className:"dodler-root"});
 
     this._createToggleBtn(root)
     this._createContent(root)
-
-    document.body.append(root);
-
   },
   _createToggleBtn(root){
-    const toggleBtn = document.createElement("BUTTON");
-    toggleBtn.id = "toggleBtn"
+    const btnHolder = this.viewService.createElement('div', root, {className:"btnHolder"});
+    const toggleBtn = this.viewService.createElement('button', btnHolder, {id:"toggleBtn"});
 
     toggleBtn.onclick = ()=>{
       root.style.width="auto";
       root.style.height="auto";
       root.classList.toggle('active')
     }
-
-    const btnHolder =  document.createElement("DIV");
-    btnHolder.classList.add("btnHolder")
-
-    btnHolder.append(toggleBtn)
-    root.append(btnHolder)
   },
   _createContent(root){
-    const contentRoot = document.createElement("DIV");
-    contentRoot.id = "contentRoot"
 
-    const headerInputs = document.createElement("DIV");
-    headerInputs.id = "headerInputs"
+    const contentRoot = this.viewService.createElement('div', root, {id:"contentRoot"});
+    const headerInputs = this.viewService.createElement('div', contentRoot, {id:"headerInputs"});
 
-    const actionBtn = document.createElement("BUTTON");
-    actionBtn.id = "actionBtn"
-
-    const outputArea = document.createElement("TEXTAREA");
-    outputArea.id = "outputArea";
-    outputArea.classList.add('text-box')
-    outputArea.disabled = true;
+    const rightCol = this.viewService.createElement('div', contentRoot, {
+      style:{display: 'flex', flexDirection: 'column'}
+    });
+    const outputArea = this.viewService.createElement('textarea', rightCol, {
+      id:"outputArea",className:'text-box',disabled: true
+    });
+    const actionBtn = this.viewService.createElement('button', rightCol, {id:"actionBtn"});
 
     const getTableData = (event)=>{
       let res = this.tableParser.parseFromClick(event)
@@ -83,15 +71,6 @@ const dodler = {
       this.state.isListening = !this.state.isListening;
     }
 
-    let rightCol = document.createElement('div');
-    rightCol.style.display = 'flex'
-    rightCol.style.flexDirection = 'column'
-    rightCol.append(outputArea)
-    rightCol.append(actionBtn)
-
-    contentRoot.append(headerInputs)
-    contentRoot.append(rightCol)
-    root.append(contentRoot)
 
     this.state.root = root;
 
@@ -103,9 +82,9 @@ const dodler = {
     this.state.sort = { key: null, asc: true }
     this.state.tableHeaders = [];
 
-    const selAllBox = document.createElement('input');
-    selAllBox.type = "checkbox"
-    selAllBox.checked = true;
+    const mainLine = this.viewService.createElement('div', inputWrapper, {style: {display:'flex',backgroundColor: '#5302c936'}});
+    const selAllBox = this.viewService.createElement('input', mainLine, {type:'checkbox', checked: true});
+
     selAllBox.addEventListener('change', event=>{
       this.state.tableHeaders = this.state.tableHeaders
       .map(item=>{
@@ -120,9 +99,8 @@ const dodler = {
       this._updateOutput();
     })
 
-    const modeSelect = document.createElement('select');
-    modeSelect.classList.add('text-box')
-    modeSelect.style.width = "172px"
+    const modeSelect = this.viewService.createElement('select', mainLine, {className: 'text-box', style: {width:'172px'}});
+
     modeSelect.addEventListener('change', event=>{
       if(event.target.value != -1){
         this.state.withHeaders = true
@@ -132,87 +110,74 @@ const dodler = {
       }
       this._updateOutput();
     })
-    const opts = [...Array(this.state.tableData.headers.length).keys()]
-    .map(idx=>{
-      const option = document.createElement('option');
-      option.value = idx;
-      option.innerHTML = `${idx+1}. header`;
-      return option;
-    })
 
-    const noKeysOpt = document.createElement('option');
-    noKeysOpt.value = -1;
-    noKeysOpt.innerHTML = 'no keys';
-    for(let option of [...opts,noKeysOpt]){
-      modeSelect.append(option)
-    }
+    this.viewService.createElement('option', modeSelect, {value: -1,innerHTML: 'no keys'});
+    const opts = [...Array(this.state.tableData.headers.length).keys()]
+    .map(idx => this.viewService.createElement('option', modeSelect, {value: idx,innerHTML: `${idx+1}. header`}))
+
     modeSelect.value = defMode ?? opts[0].value
 
-    const sortDirBtn = document.createElement('button');
-    sortDirBtn.innerHTML = this.state.sort.asc ? "↥" : "↧"
+    const sortDirBtn = this.viewService.createElement('button', mainLine, {
+      innerHTML: this.state.sort.asc ? "↥" : "↧"
+    });
+
     sortDirBtn.addEventListener('click', event=>{
       this.state.sort.asc = !this.state.sort.asc
       sortDirBtn.innerHTML = this.state.sort.asc ? "↥" : "↧"
       this._updateOutput()
     })
 
-    const mainLine = document.createElement('div');
-    mainLine.style.display = 'flex'
-    mainLine.style.backgroundColor = '#5302c936'
-    mainLine.append(selAllBox)
-    mainLine.append(modeSelect)
-    mainLine.append(sortDirBtn)
-    inputWrapper.append(mainLine)
+    for (var idx = 0; idx < maxCol; idx++) {
+      const item = this.viewService.createElement('div', inputWrapper, {style: {display: 'flex'}});
+      const checkBox = this.viewService.createElement('input', item, {
+        type: 'checkbox', checked: true, className: 'text-box'
+      });
 
-    const inputs = [...Array(maxCol).keys()].map(idx=>{
-      const input = document.createElement('input');
-      input.value = headers[idx] || null;
-      input.classList.add('text-box')
+      const input = this.viewService.createElement('input', item, {
+        className: 'text-box', value: headers[idx] || null
+      });
       this.state.tableHeaders.push({show:true, value:input.value})
 
-      input.addEventListener('input',event=>{
+      const radio = this.viewService.createElement('input', item, {
+        type: 'radio', name: "sortkey", value: input.value
+      });
+
+
+      input.addEventListener('input', event=>{
         this.state.tableHeaders[idx].value = event.target.value.trim()
         this._updateOutput();
       })
 
-      const checkBox = document.createElement('input')
-      checkBox.type = 'checkbox'
-      checkBox.checked = true;
       checkBox.addEventListener('change', event=>{
         this.state.tableHeaders[idx].show = event.target.checked
         event.target.parentElement.style.opacity = event.target.checked ? 1 : 0.6
         this._updateOutput();
       })
 
-      const radio = document.createElement('input');
-      radio.type = "radio"
-      radio.name = "sortkey"
-      radio.value = input.value;
       radio.addEventListener('change', event=>{
         this.state.sort.idx = idx
         this._updateOutput()
       })
-
-      const item = document.createElement('div')
-      item.style.display = "flex"
-
-      item.append(checkBox)
-      item.append(input)
-      item.append(radio)
-      inputWrapper.append(item)
-    })
+    }
   },
   _updateOutput(){
-    const data = this.state.tableData.data.lines;
+    let data = this.state.tableData.data.lines;
 
     const outputArea = this.state.root.querySelector("#outputArea")
     if (!this.state.withHeaders) {
+      data = data.map(line=>{
+        return line.reduce((carry,value,idx)=>{
+          if(this.state.tableHeaders[idx]?.show){
+            carry.push(value);
+          }
+          return carry;
+        },[])
+      })
       outputArea.innerHTML = JSON.stringify(data);
       return
     }
 
-    let keyedLines = data
-    .map(line=>{
+    data = data.map(line=>{
       return line.reduce((carry,value,idx)=>{
         const key = this.state.tableHeaders[idx]?.value || idx;
 
@@ -225,7 +190,7 @@ const dodler = {
     })
     if(this.state.sort.idx != null){
       const sortKey = this.state.tableHeaders[this.state.sort.idx].value;
-      keyedLines = keyedLines.sort((a,b)=>{
+      data = data.sort((a,b)=>{
 
         if(!!a[sortKey] && (isNaN(a[sortKey]) || isNaN(b[sortKey]))){
           console.log(a[sortKey].localeCompare(b[sortKey]),b[sortKey].localeCompare(a[sortKey]));
@@ -239,7 +204,7 @@ const dodler = {
         return (parseInt(a[sortKey]) - parseInt(b[sortKey])) * dir;
       })
     }
-    outputArea.innerHTML = JSON.stringify(keyedLines);
+    outputArea.innerHTML = JSON.stringify(data);
 
   },
   tableParser:{
@@ -297,6 +262,29 @@ const dodler = {
         })
       })
     }
+  },
+  viewService:{
+    createElement(tagName, parent, args){
+      let el = document.createElement(tagName)
+      Object.keys(args).forEach(key=>{
+        if(key === 'style'){
+          Object.keys(args.style).forEach(styleArg=>el.style[styleArg] = args.style[styleArg])
+          return
+        }
+        if(key === 'data'){
+          Object.keys(args.data).forEach(dataArg=>el.setAttribute(`data-${dataArg}`, args.data[dataArg]))
+        }
+        el[key] = args[key]
+      })
+
+      parent.appendChild(el)
+      if(el.elements){
+        el.elements.forEach(ch => {
+          this.createElement(ch.tagName, ch.args, el)
+        })
+      }
+      return el;
+    },
   },
   _addStyleSheet(){
     var style = document.createElement('style');
