@@ -30,6 +30,15 @@ const dodler = {
     toggleBtn.onclick = ()=>{
       root.style.width="auto";
       root.style.height="auto";
+
+      const contentRoot = root.querySelector("#contentRoot")
+      if(root.classList.contains('active')){
+        contentRoot.style.width=0;
+        contentRoot.style.height=0;
+      }else{
+        contentRoot.style.width="540px";
+        this._setHeightByHeaders();
+      }
       root.classList.toggle('active')
     }
   },
@@ -169,8 +178,7 @@ const dodler = {
       })
     })
 
-    let inputHeight = 30 * inputs.length;
-    contentRoot.style.height = inputHeight + 'px'
+    this._setHeightByHeaders();
   },
   _updateOutput(){
     let data = this.state.tableData.data.lines;
@@ -225,6 +233,10 @@ const dodler = {
     }
     outputArea.innerHTML = JSON.stringify(data);
 
+  },
+  _setHeightByHeaders(){
+    let inputHeight = 30 * (this.state.tableHeaders.length || 8);
+    this.state.root.querySelector('#contentRoot').style.height = inputHeight + 'px'
   },
   tableParser:{
     parseFromClick(event){
@@ -366,8 +378,6 @@ const dodler = {
         padding:0 6px;
       }
       .dodler-root.active #contentRoot{
-        width:540px;
-        height:270px;
         min-height:270px;
         max-height:800px;
         display: flex;
